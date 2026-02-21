@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'deployment-github-actions/**'
   workflow_dispatch:
     inputs:
       environment:
@@ -145,5 +143,5 @@ jobs:
         if: always()
         with:
           name: cdk-outputs-dev
-          path: ${{ env.WORKING_DIR }}/cdk-outputs.json
+          path: cdk-outputs.json
           retention-days: 30

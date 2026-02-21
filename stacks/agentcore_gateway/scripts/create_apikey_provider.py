@@ -58,18 +58,38 @@ def create_or_get_provider(region: str) -> str:
         code = e.response["Error"]["Code"]
         msg  = e.response["Error"]["Message"]
 
-        if "ConflictException" in code or "already exists" in msg:
-            print("⚠️  Provider already exists — fetching existing ARN...")
-            providers = agentcore.list_api_key_credential_providers()
-            for p in providers.get("items", []):
-                if p.get("name") == PROVIDER_NAME:
-                    arn = p.get("credentialProviderArn") or p.get("arn")
-                    print(f"   Existing ARN: {arn}")
-                    return arn
-            print("❌ Could not find existing provider.")
-            sys.exit(1)
+        if "ConflictException" in code or "already exists" in msg.lower():
+            print("⚠️  Provider already exists — updating API key and fetching ARN...")
+            try:
+                update_resp = agentcore.update_api_key_credential_provider(
+                    name=PROVIDER_NAME,
+                    apiKey=API_KEY,
+                )
+                arn = update_resp.get("credentialProviderArn") or update_resp.get("arn")
+                print(f"✅ Updated!  ARN: {arn}")
+                return arn
+            except Exception as update_err:
+                # update failed — try listing as a last resort
+                print(f"⚠️  Update failed ({update_err}), trying list...")
+                try:
+                    providers_resp = agentcore.list_api_key_credential_providers()
+                    # API may return 'items', 'credentialProviders', or similar
+                    items = (
+                        providers_resp.get("items")
+                        or providers_resp.get("credentialProviders")
+                        or []
+                    )
+                    for p in items:
+                        if p.get("name") == PROVIDER_NAME:
+                            arn = p.get("credentialProviderArn") or p.get("arn")
+                            print(f"   Found ARN via list: {arn}")
+                            return arn
+                except Exception as list_err:
+                    print(f"⚠️  List also failed: {list_err}")
+                print("❌ Could not retrieve existing provider ARN.")
+                sys.exit(1)
         else:
-            print(f"❌ Error: {msg}")
+            print(f"❌ Error: {code} — {msg}")
             sys.exit(1)
 
 

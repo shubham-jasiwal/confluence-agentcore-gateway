@@ -19,7 +19,7 @@ on:
 env:
   AWS_REGION: us-east-1
   PYTHON_VERSION: '3.11'
-  WORKING_DIR: deployment-github-actions
+  WORKING_DIR: .
 
 jobs:
   deploy:

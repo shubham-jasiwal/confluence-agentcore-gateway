@@ -77,7 +77,7 @@ jobs:
           CONFLUENCE_API_KEY: ${{ secrets.CONFLUENCE_API_KEY }}
         run: |
           chmod +x scripts/deploy.sh
-          ./scripts/deploy.sh --test
+          ./scripts/deploy.sh
 
       # ─── 9. Upload CDK outputs as artifact ────────────────────────────────
       - name: Upload CDK outputs

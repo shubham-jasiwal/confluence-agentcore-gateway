@@ -70,74 +70,16 @@ jobs:
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
-      # ─── 8. Set up API Key credential provider in SSM ────────────────────
-      - name: Create / Refresh API Key Credential Provider
+      # ─── 8. Run deploy script (handles everything) ────────────────────────
+      - name: Deploy
         working-directory: ${{ env.WORKING_DIR }}
         env:
-          # The Confluence API key should be stored in GitHub Secrets
-          # Format: base64("email@example.com:your_api_token")
           CONFLUENCE_API_KEY: ${{ secrets.CONFLUENCE_API_KEY }}
         run: |
-          echo "🔑 Setting up Confluence API Key credential provider..."
-          python3 stacks/agentcore_gateway/scripts/create_apikey_provider.py
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh
 
-      # ─── 9. CDK Bootstrap (idempotent — safe to run every time) ──────────
-      - name: CDK Bootstrap
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          echo "🏗️  Bootstrapping CDK environment..."
-          cdk bootstrap \
-            --app "python3 infra/app.py" \
-            aws://$(aws sts get-caller-identity --query Account --output text)/${{ env.AWS_REGION }} \
-            --require-approval never
-
-      # ─── 10. CDK Synth (validation) ───────────────────────────────────────
-      - name: CDK Synth
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          echo "🔍 Synthesizing CloudFormation templates..."
-          cdk --app "python3 infra/app.py" synth
-
-      # ─── 11. CDK Deploy ───────────────────────────────────────────────────
-      - name: CDK Deploy
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          echo "🚀 Deploying ConfluenceGatewayStack-Dev..."
-          cdk --app "python3 infra/app.py" deploy ConfluenceGatewayStack-Dev \
-            --require-approval never \
-            --outputs-file cdk-outputs.json
-
-      # ─── 12. Store Gateway ID in SSM ──────────────────────────────────────
-      - name: Store Gateway ID in SSM
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          GATEWAY_ID=$(cat cdk-outputs.json | python3 -c "
-          import json, sys
-          outputs = json.load(sys.stdin)
-          stack = list(outputs.keys())[0]
-          print(outputs[stack].get('GatewayID', ''))
-          ")
-          if [ -n "$GATEWAY_ID" ]; then
-            aws ssm put-parameter \
-              --name "/confluence/gateway/gateway-id" \
-              --value "$GATEWAY_ID" \
-              --type String \
-              --overwrite
-            echo "✅ Gateway ID stored in SSM: $GATEWAY_ID"
-          else
-            echo "⚠️  No GatewayID found in CDK outputs (may need manual target attachment)"
-          fi
-
-      # ─── 13. Print deployment summary ─────────────────────────────────────
-      - name: Deployment Summary
-        working-directory: ${{ env.WORKING_DIR }}
-        run: |
-          echo "============================================"
-          echo "✅ Deployment Complete!"
-          echo "============================================"
-          cat cdk-outputs.json | python3 -m json.tool || true
-
-      # ─── 14. Upload CDK outputs as artifact ───────────────────────────────
+      # ─── 9. Upload CDK outputs as artifact ────────────────────────────────
       - name: Upload CDK outputs
         uses: actions/upload-artifact@v4
         if: always()

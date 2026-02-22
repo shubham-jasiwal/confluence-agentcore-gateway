@@ -32,13 +32,15 @@ deployment-github-actions/
 │   ├── app.py                      # CDK entrypoint
 │   └── config/
 │       └── dev.py                  # Dev config — reads everything from SSM
+├── scripts/
+│   └── setup-ssm-params.sh         # One-time interactive SSM parameter setup
 ├── stacks/
 │   └── agentcore_gateway/
 │       ├── constructs/
-│       │   └── agent_core_gateway.py   # CDK Construct for the Gateway
+│       │   └── agent_core_gateway.py   # Reusable CDK Construct for the Gateway
 │       ├── scripts/
-│       │   ├── create_apikey_provider.py   # One-time: creates API Key provider
-│       │   └── create_oauth_provider.py    # One-time: creates OAuth provider
+│       │   ├── create_apikey_provider.py   # Creates API Key credential provider
+│       │   └── create_oauth_provider.py    # Creates OAuth credential provider
 │       └── confluence_gateway_stack.py     # Main CDK Stack
 ├── test/
 │   └── test_api_gateway.py         # Integration tests
@@ -62,24 +64,16 @@ aws configure   # set your AWS credentials
 
 ### 2. Store SSM Parameters (one-time)
 
+Run the interactive setup script — it will prompt you for each value:
+
 ```bash
-REGION="us-east-1"
-
-aws ssm put-parameter --region $REGION --name "/confluence/gateway/aws-account-id" \
-  --value "$(aws sts get-caller-identity --query Account --output text)" --type String --overwrite
-
-aws ssm put-parameter --region $REGION --name "/confluence/gateway/aws-region" \
-  --value "$REGION" --type String --overwrite
-
-aws ssm put-parameter --region $REGION --name "/confluence/gateway/confluence-subdomain" \
-  --value "YOUR_SUBDOMAIN" --type String --overwrite
-
-aws ssm put-parameter --region $REGION --name "/confluence/gateway/confluence-email" \
-  --value "your@email.com" --type String --overwrite
-
-aws ssm put-parameter --region $REGION --name "/confluence/gateway/confluence-api-token" \
-  --value "YOUR_ATLASSIAN_API_TOKEN" --type SecureString --overwrite
+chmod +x scripts/setup-ssm-params.sh
+./scripts/setup-ssm-params.sh
 ```
+
+The script auto-detects your AWS account ID, prompts for subdomain/email/API token, and stores everything securely. The API token is stored as a `SecureString`.
+
+> **Manual alternative:** See [architecture.md](./architecture.md) for the raw `aws ssm put-parameter` commands.
 
 ### 3. Create the API Key Credential Provider
 

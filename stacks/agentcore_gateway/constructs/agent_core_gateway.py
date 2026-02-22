@@ -62,6 +62,7 @@ class AgentCoreGateway(Construct):
                 sid="UseCredentialProviders",
                 actions=[
                     "bedrock-agentcore:GetCredentialProvider",
+                    "bedrock-agentcore:GetCredential",       # read secret from token vault at runtime
                     "bedrock-agentcore:InvokeGateway",
                 ],
                 resources=["*"],
